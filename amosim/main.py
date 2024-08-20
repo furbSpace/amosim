@@ -2,6 +2,7 @@ import os
 import json
 import pygame
 import numpy as np
+import scipy as sp
 from equations import *
 from utilities import *
 
@@ -32,6 +33,15 @@ with open(os.path.join(os.path.dirname(__file__), 'data/objects.json'),'r') as f
 
     f.close()
 
+# Retrieving Initial Parameters
+with open(os.path.join(os.path.dirname(__file__), 'data/initial.json'), 'r') as f:
+    parameters = json.load(f)
+    height = parameters['launchHeight']
+    bodyAngle = parameters['launchAngle']
+    bodyVelocity = parameters['launchVelocity']
+
+    f.close()
+
 # Retriving View Settings
 with open(os.path.join(os.path.dirname(__file__), 'settings/view.json'),'r') as f:
     settings = json.load(f)
@@ -40,7 +50,6 @@ with open(os.path.join(os.path.dirname(__file__), 'settings/view.json'),'r') as 
     scale = settings['defaultScale']
     theta = settings['defaultTheta']
     phi = settings['defaultPhi']
-    bodyAngle = settings['launchAngle']
     origin = np.divide(resolution,2)
 
     f.close()
@@ -60,16 +69,17 @@ clock = pygame.time.Clock()
 cursor = pygame.SYSTEM_CURSOR_ARROW
 fontHead = pygame.font.SysFont('Arial', 24)
 fontNorm = pygame.font.SysFont('Arial', 18)
+fps = 100
 orbiting = False
 panning = False
 
 # Main Loop
 while True:
-    clock.tick(100)
-    textTheta = f"X Rotation: {theta:.2f} rad"
-    textPhi = f"Y Rotation: {phi:.2f} rad"
+    clock.tick(fps)
 
+    #
     # Events
+    #
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             pygame.quit()
@@ -116,7 +126,9 @@ while True:
         if event.type == pygame.MOUSEWHEEL:
             scale = scale + event.y
 
+    #
     # Updates
+    #
     objProjection = []
     for point in obj:
         # Apply Body Rotations
@@ -134,15 +146,48 @@ while True:
         y = scale*projection[1,0] + origin[1]
         objProjection.append([x,y])
 
+    if height > 0:
+        height = height + dx(bodyVelocity[2],-sp.constants.g,1/fps)
+        bodyVelocity[2] = v(bodyVelocity[2],-sp.constants.g,1/fps)
+
+    air = airProperties(height)
+
+    # Object Data
+    textHeight = f"Height: {height:.2f}m"
+    textVelocityX = f"X Velocity: {bodyVelocity[0]:.2f}m/s"
+    textVelocityY = f"Y Velocity: {bodyVelocity[1]:.2f}m/s"
+    textVelocityZ = f"Z Velocity: {bodyVelocity[2]:.2f}m/s"
+    textAngleX = f"X Rotation: {bodyAngle[0]:.2f}rad"
+    textAngleY = f"Y Rotation: {bodyAngle[1]:.2f}rad"
+    textAngleZ = f"Z Rotation: {bodyAngle[2]:.2f}rad"
+
+    # Air Properties
+    textTemperature = f"Temperature: {air[0]:.2f}C"
+    textPressure = f"Pressure: {air[1]:.2f}kPa"
+    textDensity = f"Density: {air[2]:.2f}kg/m3"
+
+    #
     # Drawing
+    #
     window.fill(colors['white']) # clear screen
     pygame.draw.circle(window,colors['black'],origin,3) # draw origin
     drawObject(objProjection,window,colors['red'],colors['black']) # draw object
 
-    drawText("Inertial Frame:",fontHead,window,colors['black'],[0,0])
-    drawText(textTheta,fontNorm,window,colors['black'],[0,24])
-    drawText(textPhi,fontNorm,window,colors['black'],[0,42])
+    # Object Data
+    drawText("Object Info:",fontHead,window,colors['black'],[0,0])
+    drawText(textHeight,fontNorm,window,colors['black'],[0,24])
+    drawText(textAngleX,fontNorm,window,colors['black'],[0,42])
+    drawText(textAngleY,fontNorm,window,colors['black'],[0,60])
+    drawText(textAngleZ,fontNorm,window,colors['black'],[0,78])
+    drawText(textVelocityX,fontNorm,window,colors['black'],[0,96])
+    drawText(textVelocityY,fontNorm,window,colors['black'],[0,114])
+    drawText(textVelocityZ,fontNorm,window,colors['black'],[0,132])
 
-    # Constants
+    # Air Properties
+    drawText("Air Info:",fontHead,window,colors['black'],[0,resolution[1]/2])
+    drawText(textTemperature,fontNorm,window,colors['black'],[0,resolution[1]/2 + 24])
+    drawText(textPressure,fontNorm,window,colors['black'],[0,resolution[1]/2 + 42])
+    drawText(textDensity,fontNorm,window,colors['black'],[0,resolution[1]/2 + 60])
+
     pygame.mouse.set_cursor(cursor)
     pygame.display.update()

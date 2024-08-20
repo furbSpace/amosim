@@ -1,5 +1,32 @@
 import numpy as np
 
+# Equations of Motion
+def v(v0,a,dt):
+    return v0 + a*dt
+
+def dx(v0,a,dt):
+    return v0*dt + 0.5*a*(dt**2)
+
+def drag(rho,A,cD,v):
+    return (0.5*rho*A*cD*(v**2))
+
+# Properties of Air
+def airProperties(z):
+    if z < 11000: # Troposphere
+        temperature = 15.04 - 0.00649*z
+        pressure = 101.29*((temperature + 273.1)/288.08)**5.256
+
+    elif z < 25000 and z > 11000: # Lower Stratosphere
+        temperature = -56.46
+        pressure = 22.65*np.exp(1.73 - 0.000157*z)
+
+    else: # Upper Stratosphere
+        pressure = 2.488*((temperature + 273.1)/216.6)**(-11.388)
+    
+    density = pressure/(0.2869*(temperature + 273.1))
+    
+    return [temperature,pressure,density]
+
 # Rotation Functions (RADIANS not DEGREES)
 def rotateX(theta):
     Rx = np.matrix([
