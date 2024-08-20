@@ -29,7 +29,7 @@ def rotateZ(psi):
     return Rz
 
 # Projection
-def vertexProjection(pos):
+def pointProjection(pos):
     P = np.matrix([
         [1,0,0],
         [0,1,0],

@@ -22,12 +22,12 @@ with open(os.path.join(os.path.dirname(__file__), 'data/objects.json'),'r') as f
     for obj in objectTypes:
         print(f"{objectCounter+1}. {obj}")
     print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
-    objSelection = input("Please type the name of object you would like to observe: ")
+    objSelection = input("Please type the name of object you would like to observe: ").lower()
 
     # Input Validation
     while any(objSelection in objectTypes for i in objectTypes) == False: 
         print("Error, please try again!\n")
-        objSelection = input("Please type the name of object you would like to observe: ")
+        objSelection = input("Please type the name of object you would like to observe: ").lower()
     obj = np.matrix(objects[objSelection])
 
     f.close()
@@ -36,10 +36,11 @@ with open(os.path.join(os.path.dirname(__file__), 'data/objects.json'),'r') as f
 with open(os.path.join(os.path.dirname(__file__), 'settings/view.json'),'r') as f:
     settings = json.load(f)
     resolution = settings['resolution']
+    orbitSpeed = settings['orbitSensitivity']
     scale = settings['defaultScale']
     theta = settings['defaultTheta']
     phi = settings['defaultPhi']
-    psi = settings['defaultPsi']
+    bodyAngle = settings['launchAngle']
     origin = np.divide(resolution,2)
 
     f.close()
@@ -50,17 +51,23 @@ with open(os.path.join(os.path.dirname(__file__), 'settings/colors.json'),'r') a
 
     f.close()
 
+pygame.init()
+
 # Pygame Configuration
 pygame.display.set_caption("Amosim")
 window = pygame.display.set_mode(resolution)
 clock = pygame.time.Clock()
 cursor = pygame.SYSTEM_CURSOR_ARROW
+fontHead = pygame.font.SysFont('Arial', 24)
+fontNorm = pygame.font.SysFont('Arial', 18)
 orbiting = False
 panning = False
 
 # Main Loop
 while True:
     clock.tick(100)
+    textTheta = f"X Rotation: {theta:.2f} rad"
+    textPhi = f"Y Rotation: {phi:.2f} rad"
 
     # Events
     for event in pygame.event.get():
@@ -90,9 +97,15 @@ while True:
 
         elif event.type == pygame.MOUSEMOTION:
             if orbiting:
-                phi = phi + 0.1*((event.pos)[0]-cursorX)
-                psi = psi + 0.1*((event.pos)[1]-cursorY)
+                phi = phi + ((event.pos)[0]-cursorX) * orbitSpeed
+                theta = theta + ((event.pos)[1]-cursorY) * orbitSpeed
+
+                if abs(phi) >= 2*np.pi:
+                    phi = 2*np.pi - abs(phi)
                 
+                if abs(theta) >= 2*np.pi:
+                    theta = 2*np.pi - abs(theta)
+
             elif panning:
                 origin[0] = origin[0] + ((event.pos)[0]-cursorX)
                 origin[1] = origin[1] + ((event.pos)[1]-cursorY)
@@ -105,31 +118,30 @@ while True:
 
     # Updates
     objProjection = []
-    theta += 0.01
-    phi += 0.01
-    psi += 0.01
+    for point in obj:
+        # Apply Body Rotations
+        pos = np.dot(rotateX(bodyAngle[0]),np.transpose(point))
+        pos = np.dot(rotateY(bodyAngle[1]),pos)
+        pos = np.dot(rotateZ(bodyAngle[2]),pos)
 
-    # Drawing
-    window.fill(colors['white']) # clear screen
-    pygame.draw.circle(window,colors['black'],origin,3) # draw origin
-
-    for vertex in obj:
-        # Apply Rotations
-        pos = np.dot(rotateX(theta),np.transpose(vertex))
+        # Apply Inertial Rotations (Orbiting Camera)
+        pos = np.dot(rotateX(theta),pos)
         pos = np.dot(rotateY(phi),pos)
-        pos = np.dot(rotateZ(psi),pos)
 
         # Record Projection
-        projection = vertexProjection(pos)
+        projection = pointProjection(pos)
         x = scale*projection[0,0] + origin[0]
         y = scale*projection[1,0] + origin[1]
         objProjection.append([x,y])
 
-        # Draw Vertex
-        pygame.draw.circle(window,colors['red'],objProjection[-1],5)
+    # Drawing
+    window.fill(colors['white']) # clear screen
+    pygame.draw.circle(window,colors['black'],origin,3) # draw origin
+    drawObject(objProjection,window,colors['red'],colors['black']) # draw object
 
-    # Draw Object Borders
-    drawEdges(objProjection,window,colors['black'])
+    drawText("Inertial Frame:",fontHead,window,colors['black'],[0,0])
+    drawText(textTheta,fontNorm,window,colors['black'],[0,24])
+    drawText(textPhi,fontNorm,window,colors['black'],[0,42])
 
     # Constants
     pygame.mouse.set_cursor(cursor)

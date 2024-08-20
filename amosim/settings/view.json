@@ -1,7 +1,8 @@
 {
     "resolution" : [1920,1080],
+    "orbitSensitivity" : 0.01,
     "defaultScale" : 100,
     "defaultTheta" : 0,
     "defaultPhi" : 0,
-    "defaultPsi" : 0
+    "launchAngle" : [0,0,0]
 }
